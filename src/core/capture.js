@@ -3,6 +3,7 @@
  */
 import { getClient, evaluate, getChartCollection } from '../connection.js';
 import { writeFileSync, mkdirSync } from 'fs';
+import { execFileSync } from 'child_process';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -27,6 +28,12 @@ export async function captureScreenshot({ region, filename, method } = {}) {
     } catch {
       // Fall through to CDP method
     }
+  }
+
+  // Activate TradingView window — Electron throttles canvas rendering when backgrounded
+  if (process.platform === 'darwin') {
+    try { execFileSync('osascript', ['-e', 'tell application "TradingView" to activate'], { timeout: 3000 }); } catch {}
+    await new Promise(r => setTimeout(r, 300));
   }
 
   const client = await getClient();

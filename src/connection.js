@@ -90,10 +90,18 @@ export async function connect() {
 async function findChartTarget() {
   const resp = await fetch(`http://${CDP_HOST}:${CDP_PORT}/json/list`);
   const targets = await resp.json();
-  // Prefer targets with tradingview.com/chart in the URL
-  return targets.find(t => t.type === 'page' && /tradingview\.com\/chart/i.test(t.url))
-    || targets.find(t => t.type === 'page' && /tradingview/i.test(t.url))
-    || null;
+  const chartTargets = targets.filter(t => t.type === 'page' && /tradingview\.com\/chart/i.test(t.url));
+
+  if (chartTargets.length === 0) {
+    return targets.find(t => t.type === 'page' && /tradingview/i.test(t.url)) || null;
+  }
+
+  // If only one chart tab, use it
+  if (chartTargets.length === 1) return chartTargets[0];
+
+  // Multiple chart tabs: prefer the one that was most recently active (first in list)
+  // CDP /json/list returns targets roughly ordered by last activity
+  return chartTargets[0];
 }
 
 export async function getTargetInfo() {

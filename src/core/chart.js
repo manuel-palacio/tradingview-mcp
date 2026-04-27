@@ -38,7 +38,10 @@ export async function getState({ _deps } = {}) {
 }
 
 export async function setSymbol({ symbol, _deps }) {
-  const { evaluateAsync, waitForChartReady } = _resolve(_deps);
+  const { evaluate, evaluateAsync, waitForChartReady } = _resolve(_deps);
+  // Get current timeframe before switching
+  const currentTf = await evaluate(`${CHART_API}.resolution()`);
+
   await evaluateAsync(`
     (function() {
       var chart = ${CHART_API};
@@ -48,6 +51,13 @@ export async function setSymbol({ symbol, _deps }) {
       });
     })()
   `);
+
+  // Toggle timeframe to force canvas re-render (Electron may not re-render on symbol change alone)
+  const tempTf = currentTf === 'D' ? 'W' : 'D';
+  await evaluate(`${CHART_API}.setResolution(${safeString(tempTf)}, {})`);
+  await new Promise(r => setTimeout(r, 500));
+  await evaluate(`${CHART_API}.setResolution(${safeString(currentTf)}, {})`);
+
   const ready = await waitForChartReady(symbol);
   return { success: true, symbol, chart_ready: ready };
 }
